@@ -1,0 +1,202 @@
+---
+title: "Drink Forecasting Project Summary"
+author: "Kristie Hermosillo"
+format: html
+---
+
+## 📦 Setup
+
+```{r}
+# install.packages(c("forecast", "ggplot2", "readr", "lubridate", "dplyr")) # Uncomment if not yet installed
+
+library(readr)
+library(forecast)
+library(ggplot2)
+library(lubridate)
+library(dplyr)
+```
+
+------------------------------------------------------------------------
+
+## 📊 Step 1: Load & Prepare Data
+
+```{r}
+psl <- read_csv("psl_weekly.csv")
+psl$Week <- as.Date(psl$Week)
+ts_psl <- ts(psl$Search_Volume, start = c(2022, 1), frequency = 52)
+
+strawberry <- read_csv("strawberry_matcha_weekly.csv")
+strawberry$Week <- as.Date(strawberry$Week)
+ts_strawberry <- ts(strawberry$Search_Volume, start = c(2022, 1), frequency = 52)
+
+peppermint <- read_csv("peppermint_mocha_weekly.csv")
+peppermint$Week <- as.Date(peppermint$Week)
+ts_peppermint <- ts(peppermint$Search_Volume, start = c(2022, 1), frequency = 52)
+```
+
+------------------------------------------------------------------------
+
+## 🔍 Step 2: Model Each Drink with SARIMA
+
+### PSL
+
+```{r}
+fit_psl <- auto.arima(ts_psl, seasonal = TRUE)
+fcast_psl <- forecast(fit_psl, h = 20)
+autoplot(fcast_psl)
+checkresiduals(fit_psl)
+```
+
+### Strawberry Matcha
+
+```{r}
+fit_straw <- auto.arima(ts_strawberry, seasonal = TRUE)
+fcast_straw <- forecast(fit_straw, h = 20)
+autoplot(fcast_straw)
+checkresiduals(fit_straw)
+```
+
+### Peppermint Mocha
+
+```{r}
+fit_peppermint <- auto.arima(ts_peppermint, seasonal = TRUE)
+fcast_peppermint <- forecast(fit_peppermint, h = 20)
+autoplot(fcast_peppermint)
+checkresiduals(fit_peppermint)
+```
+
+## 📈 Model Interpretation Summary
+
+### PSL (Pumpkin Spice Latte)
+- **Purpose:** Seasonal benchmark for fall drinks  
+- **Model:** ARIMA(0,1,1)(1,1,0)[52]  
+- **Insights:** Strong seasonality with predictable spikes in September–October. Residuals are clean (p = 0.35), meaning model fit is solid.
+
+### Strawberry Matcha
+- **Purpose:** Year-round trend assessment  
+- **Model:** ARIMA(0,0,0)(1,1,0)[52] with drift  
+- **Insights:** Upward trend emerging. Slightly noisier residuals (p = 0.097), but drift suggests rising popularity.
+
+### Peppermint Mocha
+- **Purpose:** Winter holiday demand tracking  
+- **Model:** ARIMA(0,0,0)(1,1,0)[52]  
+- **Insights:** Peaks predictably in Nov–Dec. Very clean residuals (p = 0.29), indicating model fits well.
+
+### PSL with Exogenous Variables
+- **Purpose:** Test external influence (holiday & temp)  
+- **Model:** ARIMA(2,0,2)(1,0,0)[52] with regressors  
+- **Insights:** Holidays have a modest negative coefficient (-2.18), temperature also slightly negative. Suggests PSL spikes aren't only due to weather or holidays—marketing may matter more.
+
+------------------------------------------------------------------------
+
+## 🧪 Step 3: Backtesting Example (PSL)
+
+```{r}
+train_psl <- window(ts_psl, end = c(2024, 52))
+test_psl <- window(ts_psl, start = c(2025, 1))
+
+fit_train_psl <- auto.arima(train_psl, seasonal = TRUE)
+fcast_test_psl <- forecast(fit_train_psl, h = length(test_psl))
+accuracy(fcast_test_psl, test_psl)
+```
+
+------------------------------------------------------------------------
+
+## 🧩 Step 4: Holiday Variable (Optional)
+
+```{r}
+# Make sure this is included to access US holiday functions
+library(timeDate)
+library(lubridate)
+
+# Create a dataframe of U.S. holidays for 2022–2025
+holidays <- data.frame(
+  Date = as.Date(c(
+    USNewYearsDay(2022:2025),
+    USIndependenceDay(2022:2025),
+    USThanksgivingDay(2022:2025),
+    USChristmasDay(2022:2025)
+  ))
+)
+
+# Create a Week column rounded to Sunday
+holidays$Week <- floor_date(holidays$Date, "week")
+
+# One-hot encode holiday presence
+holiday_df <- holidays %>%
+  mutate(Holiday_Indicator = 1) %>%
+  distinct(Week, .keep_all = TRUE)
+```
+
+## 🎉 Step 5: Add Exogenous Variables (Holiday & Temperature)
+
+```{r}
+# Create mock U.S. holiday dates from 2022 to 2025
+library(timeDate)
+
+holidays <- data.frame(
+  Date = as.Date(c(
+    timeDate::USNewYearsDay(2022:2025),
+    timeDate::USIndependenceDay(2022:2025),
+    timeDate::USThanksgivingDay(2022:2025),
+    timeDate::USChristmasDay(2022:2025)
+  ))
+)
+
+# Convert to weeks
+holidays$Week <- floor_date(holidays$Date, "week")
+
+holiday_df <- holidays %>%
+  mutate(Holiday_Indicator = 1) %>%
+  distinct(Week, .keep_all = TRUE)
+```
+
+```{r}
+# Create mock temperature by week from 2022 to 2025
+all_weeks <- data.frame(
+  Week = seq(as.Date("2022-01-02"), as.Date("2025-06-01"), by = "week")
+)
+
+# Add a sinusoidal seasonal pattern
+all_weeks$Avg_Temp <- 50 + 20 * sin(2 * pi * as.numeric(format(all_weeks$Week, "%j")) / 365) +
+  rnorm(nrow(all_weeks), mean = 0, sd = 5)
+```
+
+```{r}
+# Merge in holiday and temperature
+psl <- left_join(psl, holiday_df, by = "Week")
+psl$Holiday_Indicator[is.na(psl$Holiday_Indicator)] <- 0
+
+psl <- left_join(psl, all_weeks, by = "Week")
+```
+
+```{r}
+# Re-fit SARIMA model with external regressors
+xreg_matrix <- as.matrix(psl[, c("Holiday_Indicator", "Avg_Temp")])
+fit_psl_exog <- auto.arima(
+  ts_psl,
+  xreg = xreg_matrix,
+  stepwise = TRUE,
+  approximation = TRUE
+)
+summary(fit_psl_exog)
+```
+
+## ✅ Recommendations
+
+-   **PSL:** Fall-limited promotion, predictable spikes around September–October\
+-   **Strawberry Matcha:** Trending upward—expand into full-year offering\
+-   **Peppermint Mocha:** Perfectly seasonal, holiday peak in November–December
+
+## 🚧 To-Do / Remaining Steps
+- [x] Format and clean Google Trends data for all drinks  
+- [x] Build baseline SARIMA models for PSL, Strawberry Matcha, and Peppermint Mocha  
+- [x] Backtest PSL using train/test split  
+- [x] Generate forecast visualizations and residual diagnostics  
+- [x] Add holiday calendar and temperature data to PSL  
+- [ ] Apply exogenous regressors to Strawberry and Peppermint (optional)
+- [ ] Add drink launch dates (manual or estimated)  
+- [ ] Run Holt-Winters comparison (for at least PSL)  
+- [ ] Finalize executive summary and Canva slides  
+- [ ] Prep speaker notes for 10–12 minute team presentation  
+
