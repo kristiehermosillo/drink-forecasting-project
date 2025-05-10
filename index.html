@@ -3446,18 +3446,93 @@ Regression with ARIMA(2,0,2)(1,0,0)[52] errors
 
 Coefficients:
          ar1      ar2      ma1     ma2    sar1  intercept  Holiday_Indicator
-      1.5699  -0.6291  -1.3985  0.6635  0.1768    32.2766            -2.4596
-s.e.  0.1579   0.1447   0.1215  0.0821  0.1050     4.9467             1.7366
+      1.8637  -0.8911  -1.6151  0.7234  0.2425    24.4083            -2.2168
+s.e.  0.0647   0.0608   0.0765  0.0664  0.0996     5.0254             1.8699
       Avg_Temp
-       -0.2625
-s.e.    0.0843
+       -0.1075
+s.e.    0.0886
 
-sigma^2 = 33.62:  log likelihood = -562.81
-AIC=1143.61   AICc=1144.68   BIC=1172.25
+sigma^2 = 34.27:  log likelihood = -565.39
+AIC=1148.78   AICc=1149.85   BIC=1177.41
 
 Training set error measures:
-                     ME     RMSE     MAE  MPE MAPE      MASE         ACF1
-Training set -0.0160848 5.666869 4.57618 -Inf  Inf 0.8098296 -0.007253638</code></pre>
+                      ME     RMSE      MAE  MPE MAPE      MASE        ACF1
+Training set -0.06396846 5.720655 4.660871 -Inf  Inf 0.8248171 -0.04935969</code></pre>
+</div>
+</div>
+<p>##Step 6 ## 🔁 Merge Launch Dates</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb37"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb37-1"><a href="#cb37-1" aria-hidden="true" tabindex="-1"></a>launch_dates <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="st">&quot;launch_weeks.csv&quot;</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Rows: 179 Columns: 4
+── Column specification ────────────────────────────────────────────────────────
+Delimiter: &quot;,&quot;
+dbl  (3): Launch_PSL, Launch_PM, Launch_SM
+date (1): Week
+
+ℹ Use `spec()` to retrieve the full column specification for this data.
+ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb39"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb39-1"><a href="#cb39-1" aria-hidden="true" tabindex="-1"></a>psl <span class="ot">&lt;-</span> <span class="fu">left_join</span>(psl, launch_dates, <span class="at">by =</span> <span class="st">&quot;Week&quot;</span>)</span>
+<span id="cb39-2"><a href="#cb39-2" aria-hidden="true" tabindex="-1"></a>strawberry <span class="ot">&lt;-</span> <span class="fu">left_join</span>(strawberry, launch_dates, <span class="at">by =</span> <span class="st">&quot;Week&quot;</span>)</span>
+<span id="cb39-3"><a href="#cb39-3" aria-hidden="true" tabindex="-1"></a>peppermint <span class="ot">&lt;-</span> <span class="fu">left_join</span>(peppermint, launch_dates, <span class="at">by =</span> <span class="st">&quot;Week&quot;</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb40"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb40-1"><a href="#cb40-1" aria-hidden="true" tabindex="-1"></a>xreg_psl <span class="ot">&lt;-</span> <span class="fu">as.matrix</span>(psl[, <span class="fu">c</span>(<span class="st">&quot;Holiday_Indicator&quot;</span>, <span class="st">&quot;Avg_Temp&quot;</span>, <span class="st">&quot;Launch_PSL&quot;</span>)])</span>
+<span id="cb40-2"><a href="#cb40-2" aria-hidden="true" tabindex="-1"></a>fit_psl_launch <span class="ot">&lt;-</span> <span class="fu">auto.arima</span>(ts_psl, <span class="at">xreg =</span> xreg_psl, <span class="at">stepwise =</span> <span class="cn">TRUE</span>, <span class="at">approximation =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb40-3"><a href="#cb40-3" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(fit_psl_launch)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Series: ts_psl 
+Regression with ARIMA(2,0,2)(1,0,0)[52] errors 
+
+Coefficients:
+         ar1      ar2      ma1     ma2    sar1  intercept  Holiday_Indicator
+      1.8661  -0.8930  -1.6146  0.7208  0.2450    24.3309            -2.2225
+s.e.  0.0648   0.0606   0.0756  0.0670  0.0999     5.0194             1.8729
+      Avg_Temp  Launch_PSL
+       -0.1054     -1.1198
+s.e.    0.0887      3.3143
+
+sigma^2 = 34.43:  log likelihood = -565.33
+AIC=1150.66   AICc=1151.98   BIC=1182.48
+
+Training set error measures:
+                      ME    RMSE      MAE  MPE MAPE      MASE        ACF1
+Training set -0.06479549 5.71778 4.667217 -Inf  Inf 0.8259401 -0.04798684</code></pre>
+</div>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb42"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb42-1"><a href="#cb42-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Train/test split for Strawberry Matcha</span></span>
+<span id="cb42-2"><a href="#cb42-2" aria-hidden="true" tabindex="-1"></a>train_straw <span class="ot">&lt;-</span> <span class="fu">window</span>(ts_strawberry, <span class="at">end =</span> <span class="fu">c</span>(<span class="dv">2024</span>, <span class="dv">52</span>))</span>
+<span id="cb42-3"><a href="#cb42-3" aria-hidden="true" tabindex="-1"></a>test_straw <span class="ot">&lt;-</span> <span class="fu">window</span>(ts_strawberry, <span class="at">start =</span> <span class="fu">c</span>(<span class="dv">2025</span>, <span class="dv">1</span>))</span>
+<span id="cb42-4"><a href="#cb42-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-5"><a href="#cb42-5" aria-hidden="true" tabindex="-1"></a>fit_train_straw <span class="ot">&lt;-</span> <span class="fu">auto.arima</span>(train_straw, <span class="at">seasonal =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb42-6"><a href="#cb42-6" aria-hidden="true" tabindex="-1"></a>fcast_test_straw <span class="ot">&lt;-</span> <span class="fu">forecast</span>(fit_train_straw, <span class="at">h =</span> <span class="fu">length</span>(test_straw))</span>
+<span id="cb42-7"><a href="#cb42-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-8"><a href="#cb42-8" aria-hidden="true" tabindex="-1"></a><span class="fu">accuracy</span>(fcast_test_straw, test_straw)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>                      ME     RMSE      MAE       MPE     MAPE      MASE
+Training set 0.005786818 4.776579 3.154167      -Inf      Inf 0.4463039
+Test set     0.867639128 5.107362 4.380404 0.9420886 13.83198 0.6198122
+                    ACF1 Theil&#39;s U
+Training set -0.09382669        NA
+Test set     -0.55393352 0.6078676</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb44"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb44-1"><a href="#cb44-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Train/test split for Peppermint Mocha</span></span>
+<span id="cb44-2"><a href="#cb44-2" aria-hidden="true" tabindex="-1"></a>train_peppermint <span class="ot">&lt;-</span> <span class="fu">window</span>(ts_peppermint, <span class="at">end =</span> <span class="fu">c</span>(<span class="dv">2024</span>, <span class="dv">52</span>))</span>
+<span id="cb44-3"><a href="#cb44-3" aria-hidden="true" tabindex="-1"></a>test_peppermint <span class="ot">&lt;-</span> <span class="fu">window</span>(ts_peppermint, <span class="at">start =</span> <span class="fu">c</span>(<span class="dv">2025</span>, <span class="dv">1</span>))</span>
+<span id="cb44-4"><a href="#cb44-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb44-5"><a href="#cb44-5" aria-hidden="true" tabindex="-1"></a>fit_train_peppermint <span class="ot">&lt;-</span> <span class="fu">auto.arima</span>(train_peppermint, <span class="at">seasonal =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb44-6"><a href="#cb44-6" aria-hidden="true" tabindex="-1"></a>fcast_test_peppermint <span class="ot">&lt;-</span> <span class="fu">forecast</span>(fit_train_peppermint, <span class="at">h =</span> <span class="fu">length</span>(test_peppermint))</span>
+<span id="cb44-7"><a href="#cb44-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb44-8"><a href="#cb44-8" aria-hidden="true" tabindex="-1"></a><span class="fu">accuracy</span>(fcast_test_peppermint, test_peppermint)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>                     ME     RMSE      MAE     MPE     MAPE      MASE
+Training set -0.1038818 5.363875 3.494089    -Inf      Inf 0.6138265
+Test set      1.3564728 6.559903 5.585951 -26.028 70.25009 0.9813157
+                    ACF1 Theil&#39;s U
+Training set  0.02126880        NA
+Test set     -0.05921258  0.751709</code></pre>
 </div>
 </div>
 </section>
@@ -3484,7 +3559,7 @@ Training set -0.0160848 5.666869 4.57618 -Inf  Inf 0.8098296 -0.007253638</code>
 </label></li>
 <li><label><input type="checkbox" checked>Add holiday calendar and temperature data to PSL<br>
 </label></li>
-<li><label><input type="checkbox">Apply exogenous regressors to Strawberry and Peppermint (optional)</label></li>
+<li><label><input type="checkbox" checked>Apply exogenous regressors to Strawberry and Peppermint (optional)</label></li>
 <li><label><input type="checkbox">Add drink launch dates (manual or estimated)<br>
 </label></li>
 <li><label><input type="checkbox">Run Holt-Winters comparison (for at least PSL)<br>
