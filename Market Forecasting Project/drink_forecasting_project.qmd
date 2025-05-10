@@ -1,7 +1,9 @@
 ---
 title: "Drink Forecasting Project Summary"
 author: "Kristie Hermosillo"
-format: html
+format:
+  html:
+    embed-resources: true
 ---
 
 ## 📦 Setup
@@ -182,11 +184,121 @@ fit_psl_exog <- auto.arima(
 summary(fit_psl_exog)
 ```
 
+##Step 6
+## 🔁 Merge Launch Dates
+
+```{r}
+launch_dates <- read_csv("launch_weeks.csv")
+
+psl <- left_join(psl, launch_dates, by = "Week")
+strawberry <- left_join(strawberry, launch_dates, by = "Week")
+peppermint <- left_join(peppermint, launch_dates, by = "Week")
+```
+
+```{r}
+xreg_psl <- as.matrix(psl[, c("Holiday_Indicator", "Avg_Temp", "Launch_PSL")])
+fit_psl_launch <- auto.arima(ts_psl, xreg = xreg_psl, stepwise = TRUE, approximation = TRUE)
+summary(fit_psl_launch)
+```
+
+```{r}
+# Train/test split for Strawberry Matcha
+train_straw <- window(ts_strawberry, end = c(2024, 52))
+test_straw <- window(ts_strawberry, start = c(2025, 1))
+
+fit_train_straw <- auto.arima(train_straw, seasonal = TRUE)
+fcast_test_straw <- forecast(fit_train_straw, h = length(test_straw))
+
+accuracy(fcast_test_straw, test_straw)
+
+# Train/test split for Peppermint Mocha
+train_peppermint <- window(ts_peppermint, end = c(2024, 52))
+test_peppermint <- window(ts_peppermint, start = c(2025, 1))
+
+fit_train_peppermint <- auto.arima(train_peppermint, seasonal = TRUE)
+fcast_test_peppermint <- forecast(fit_train_peppermint, h = length(test_peppermint))
+
+accuracy(fcast_test_peppermint, test_peppermint)
+
+```
+
+```{r}
+# Holt-Winters for PSL
+hw_psl <- HoltWinters(ts_psl)
+hw_fcast <- forecast(hw_psl, h = 20)
+
+# Plot forecast
+autoplot(hw_fcast) +
+  ggtitle("20-Week Holt-Winters Forecast – PSL") +
+  xlab("Week") +
+  ylab("Forecasted Search Volume")
+
+# Compare fit to actual
+accuracy(hw_fcast)
+
+# Holt-Winters for Strawberry Matcha
+hw_straw <- HoltWinters(ts_strawberry)
+hw_fcast_straw <- forecast(hw_straw, h = 20)
+
+# Plot forecast
+autoplot(hw_fcast_straw) +
+  ggtitle("20-Week Holt-Winters Forecast – Strawberry Matcha") +
+  xlab("Week") +
+  ylab("Forecasted Search Volume")
+
+# Accuracy
+accuracy(hw_fcast_straw)
+
+# Holt-Winters for Peppermint Mocha
+hw_peppermint <- HoltWinters(ts_peppermint)
+hw_fcast_peppermint <- forecast(hw_peppermint, h = 20)
+
+# Plot forecast
+autoplot(hw_fcast_peppermint) +
+  ggtitle("20-Week Holt-Winters Forecast – Peppermint Mocha") +
+  xlab("Week") +
+  ylab("Forecasted Search Volume")
+
+# Accuracy
+accuracy(hw_fcast_peppermint)
+```
+## 🔁 Holt-Winters Model Summary
+
+We applied Holt-Winters exponential smoothing to each drink to assess how well a simpler seasonal model compares to our SARIMA results.
+
+### 🎃 Pumpkin Spice Latte (PSL)
+- RMSE: 5.79 | MAE: 4.26 | MASE: 0.75
+- Residuals well-behaved (ACF1 = -0.075)
+- ⚡ Nearly identical performance to SARIMA—strong seasonal pattern
+
+### 🍓 Strawberry Matcha
+- RMSE: 5.76 | MAE: 4.52 | MASE: 0.62
+- Slightly noisier trend but model still holds
+- ✅ Holt-Winters provides reasonable short-term forecasts
+
+### 🍬 Peppermint Mocha
+- RMSE: 6.40 | MAE: 4.68 | MASE: 0.82
+- Residuals less stable (ACF1 = 0.06)
+- ⚠️ SARIMA likely remains the better fit for capturing sharper holiday spikes
+
+### 💡 Conclusion:
+Holt-Winters is a solid fallback option and performs especially well with strongly seasonal drinks like PSL. For drinks with trend or volatility (like Strawberry Matcha or Peppermint Mocha), SARIMA offers better control and precision.
+
+
 ## ✅ Recommendations
 
--   **PSL:** Fall-limited promotion, predictable spikes around September–October\
--   **Strawberry Matcha:** Trending upward—expand into full-year offering\
--   **Peppermint Mocha:** Perfectly seasonal, holiday peak in November–December
+- **PSL:** Strong fall-limited drink with highly predictable spikes in September–October. Both SARIMA and Holt-Winters models confirm a clear seasonal pattern.  
+  → Recommend targeted promotions starting late August; low risk, high consistency.
+
+- **Strawberry Matcha:** Demonstrates upward momentum and less seasonality. Forecasts suggest year-round potential despite some variability.  
+  → Recommend expanding availability beyond spring; promote as a refreshing alternative to coffee.
+
+- **Peppermint Mocha:** Highly seasonal and sharp-peaking around early November. SARIMA fits better than Holt-Winters due to sudden demand spike.  
+  → Recommend aligning release strictly with holiday marketing—early November through December. Limited window = high impact.
+
+- **General Insight:** SARIMA provides more precise forecasting for sharp seasonal patterns, while Holt-Winters is a solid, lightweight alternative for drinks with smoother seasonality.
+
+
 
 ## 🚧 To-Do / Remaining Steps
 - [x] Format and clean Google Trends data for all drinks  
@@ -194,9 +306,9 @@ summary(fit_psl_exog)
 - [x] Backtest PSL using train/test split  
 - [x] Generate forecast visualizations and residual diagnostics  
 - [x] Add holiday calendar and temperature data to PSL  
-- [ ] Apply exogenous regressors to Strawberry and Peppermint (optional)
-- [ ] Add drink launch dates (manual or estimated)  
-- [ ] Run Holt-Winters comparison (for at least PSL)  
+- [x] Apply exogenous regressors to Strawberry and Peppermint (optional)
+- [x] Add drink launch dates (manual or estimated)  
+- [x] Run Holt-Winters comparison (for at least PSL)  
 - [ ] Finalize executive summary and Canva slides  
 - [ ] Prep speaker notes for 10–12 minute team presentation  
 
